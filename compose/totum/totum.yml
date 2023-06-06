@@ -1,0 +1,100 @@
+version: "3"
+name: totum
+services:
+ totum:
+  image: images/totum:mode
+  container_name: "totum"
+  ports:
+   - "0.0.0.0:80:80"
+  environment:
+   - TOTUM_DB_HOST=db
+   - TOTUM_DB_USER=${DB_USER}
+   - TOTUM_DB_PASSWORD=${DB_PASS}
+   - TOTUM_DB_NAME=${DB_NAME}
+   - TOTUM_DB_SCHEME=${DB_SCHEME}
+   - TOTUM_USER=${TOTUM_USER}
+   - TOTUM_PASSWORD=${TOTUM_PASS}
+   - TOTUM_MAIL=${TOTUM_MAIL}
+   - TOTUM_HOST=${TOTUM_HOST}
+   - TZ=${TZ}
+  volumes:
+   - "/app/totum/Conf.php:/home/totum/totum/Conf.php"
+  depends_on:
+   totum-db:
+    condition: service_healthy
+   totum-meilisearch:
+    condition: service_started
+  links:
+   - totum-db:db
+   - totum-meilisearch:search
+  networks:
+   - totum
+  dns:
+   - 192.168.0.0
+  dns_search: dc.domain.ru
+  logging:
+   driver: "json-file"
+   options:
+    max-size: "200k" 
+    max-file: "5"
+  restart: always
+
+ totum-db:
+  image: postgres:14-alpine
+  container_name: "totum-db"
+# ports:
+#  - "5432:5432"
+  environment:
+   - POSTGRES_USER=${DB_USER}
+   - POSTGRES_PASSWORD=${DB_PASS}
+   - POSTGRES_DB=${DB_NAME}
+   - POSTGRES_DB_SCHEME=${DB_SCHEME}
+   - TZ=${TZ}
+   - PGTZ=${TZ}
+  volumes: 
+   - "/app/totum/db:/var/lib/postgresql/data"
+   - "/app/totum/db_scripts:/docker-entrypoint-initdb.d"
+  healthcheck:
+   test: [ "CMD-SHELL", "pg_isready -d \$\${POSTGRES_DB} -U \$\${POSTGRES_USER} --quiet" ]
+   start_period: 20s
+   interval: 30s
+   timeout: 10s
+   retries: 10
+  networks:
+   - totum
+  logging:
+   driver: "json-file"
+   options:
+    max-size: "200k"
+    max-file: "5"
+  restart: always
+
+ totum-meilisearch:
+  image: getmeili/meilisearch:v1.1.1
+  container_name: "totum-meilisearch"
+  expose:
+   - "7700"
+  environment:
+   - MEILI_ENV=production
+   - MEILI_MASTER_KEY=${MEILI_KEY}
+   - MEILI_HTTP_ADDR=0.0.0.0:7700
+   - MEILI_NO_ANALYTICS=true
+   - MEILI_LOG_LEVEL=WARN
+  volumes: 
+   - "meili_data:/meili_data"
+  networks:
+   - totum
+  logging:
+   driver: "json-file"
+   options:
+    max-size: "200k"
+    max-file: "5"
+  restart: always
+
+volumes:
+ meili_data:
+
+networks:
+ totum:
+  driver: bridge
+  name: totum

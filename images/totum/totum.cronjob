@@ -1,0 +1,3 @@
+* * * * * /bin/totum schemas-crons
+*/10 * * * * /bin/totum clean-tmp-dir
+*/10 * * * * /bin/totum clean-schemas-tmp-tables
